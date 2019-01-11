@@ -16,18 +16,14 @@ For the purpose of this demonstration, we will be assuming the persistent docker
 2. [Create a Self-Signed Certificate](#create-self-signed-certificate)
 3. [Set hostname on local machine](@set-hostname)
 4. [Start with Docker Compose](#docker-compose-control)
-5. Browse: https://my.gitlab:3143 to see your new installation.
-6. Add an exception in your browser for the page because of the self-signed certificate. If Chrome hit "advanced" then "Proceed to my.gitlab (unsafe)". If firefox, click "add exception".
-7. Create a new gitlab admin password
-8. Create a new user account
-9. [Add Account SSH key](#add-account-ssh-key) 
-10. [Create New Project](#create-new-project)
-11. [Create New Runner](#register-new-runner)
-12. [Setup Runner Docker in Docker](#setup-runner-docker-socket-binding)
-13. [Setup Gitlab DevOps](#setup-devops)
-14. [Run test job](#run-test-job)
-15. [Troubleshooting]
-
+5. [Begin using gitlab](#begin-using-gitlab)
+6. [Add Account SSH key](#add-account-ssh-key) 
+7. [Create New Project](#create-new-project)
+8. [Create New Runner](#register-new-runner)
+9. [Setup Runner Docker in Docker](#setup-runner-docker-socket-binding)
+10. [Setup Gitlab DevOps](#setup-devops)
+11. [Run test job](#run-test-job)
+12. [Troubleshooting](#troubleshooting)
 
 ## Gitlab Omnibus Config
 
@@ -130,6 +126,13 @@ Visit https://my.gitlab:3143 to see your new installation
 ```
 docker-compose down
 ```
+
+## Begin Using Gitlab
+
+1. Browse: https://my.gitlab:3143 to see your new installation.
+2. Add an exception in your browser for the page because of the self-signed certificate. If Chrome hit "advanced" then "Proceed to my.gitlab (unsafe)". If firefox, click "add exception".
+3. Create a new gitlab admin password
+4. Create a new user account
 
 ## Add Account SSH Key
 
