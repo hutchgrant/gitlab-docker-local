@@ -1,6 +1,6 @@
 # Gitlab CE Docker Compose Local Install
 
-Install and run Gitlab CE and Gitlab-Runner in local docker containers via docker-compose.
+Install, configure, and run Gitlab CE and Gitlab-Runner in local docker containers via docker-compose.
 
 ### Preqrequisites
 
@@ -16,13 +16,13 @@ For the purpose of this demonstration, we will be assuming the persistent docker
 2. [Create a Self-Signed Certificate](#create-self-signed-certificate)
 3. [Set hostname on local machine](@set-hostname)
 4. [Start with Docker Compose](#docker-compose-control)
-5. [Begin using gitlab](#begin-using-gitlab)
+5. [Begin Using Gitlab](#begin-using-gitlab)
 6. [Add Account SSH key](#add-account-ssh-key) 
 7. [Create New Project](#create-new-project)
 8. [Create New Runner](#register-new-runner)
-9. [Setup Runner Docker in Docker](#setup-runner-docker-socket-binding)
+9. [Setup Runner with Docker Socket](#setup-runner-docker-socket-binding)
 10. [Setup Gitlab DevOps](#setup-devops)
-11. [Run test job](#run-test-job)
+11. [Run Test Job](#run-test-job)
 12. [Troubleshooting](#troubleshooting)
 
 ## Gitlab Omnibus Config
@@ -284,23 +284,38 @@ Save variables.
 
 You can see these variables in the provided `.gitlab-ci.yml` devops configuration file.
 
-Here we're setting git to not verify ssl due to the self-signed certificate. W
+Here we're setting git to not verify ssl due to the self-signed certificate. We're also using the package.json version number as the tag for the container image. 
 
-We're using the package.json version number as the tag for the container image. 
+We push the specific package version along with a general latest version to our container registry. We're then removing those images from our host because it's redundant, we don't need to take up image space on Host machine in addition to the Gitlab CE registry.
 
-We push the specific version along with a general latest version. We're then removing those images from our host because it's redundant, we don't need to take up image space on Host machine in addition to the Gitlab CE registry.
-
-## Run test job
+## Run Test Job
 
 If you followed all the above steps, the CI/CD pipeline will run on every commit to the master branch. Your project will run tests, build a container, push that container to the registry. To try this out, go to your project -> CI/CD -> Pipelines -> Run pipeline. Or just commit then push something new to the project repository.
+
+Test the image on your host machine:
+
+```
+docker login my.gitlab:4567
+docker run --init my.gitlab:4567/yourusername/example
+
+# Serving at http://6545d2bfb882:8000, http://127.0.0.1:8000, http://172.17.0.2:8000
+```
+Now visit your container's IP at port 8000 to see your application. e.g. http://172.17.0.2:8000 in this example.
+
+**Note** `--init` is important to send the right exit signals. Otherwise you must stop the container via `docker stop whatever_container_name_id`
+
+You can also run tests:
+```
+docker run my.gitlab:4567/yourusername/example npm run test
+```
 
 
 ## Troubleshooting
 
-1. If you see an error about 'unknown certificate authority' in your gitlab-runner, make sure you included the correct `volumes` docker socket bind within your [gitlab-runner config.toml](#setup-runner-docker-socket-binding)
+1. If you see an error about 'unknown certificate authority' or anything related to 'docker daemon' in your gitlab-runner, make sure you included the correct `volumes` docker socket bind within your [gitlab-runner config.toml](#setup-runner-docker-socket-binding)
 
 2. If you see an error 'could not resolve host' when gitlab-runner initially clones your repository, make sure you have the correct clone_url, and network_mode, within your [gitlab-runner config.toml](#setup-runner-docker-socket-binding), that matches your hostname and docker network within your `docker-compose.yml`.
 
 3. If you see an error 'connection refused' when gitlab-runner initially clones your repository, make sure you have the correct clone_url within your [gitlab-runner config.toml](#setup-runner-docker-socket-binding) that matches your hostname within your `docker-compose.yml` e.g. `https://my.gitlab` without a port.
 
-4. If you see an error in gitlab-runner after docker login `unauthorized: HTTP Basic: Access denied`, make sure you entered the correct CI_REGISTRY_URL, CI_REGISTRY_USER, CI_REGISTRY_PASS in the variables section of your project -> Settings -> CI/CD. See [Setup DevOps](#setup-devops).
+4. If you see an error in gitlab-runner after docker login `unauthorized: HTTP Basic: Access denied`, make sure you entered the correct CI_REGISTRY, CI_REGISTRY_USER, CI_REGISTRY_PASS in the variables section of your project -> Settings -> CI/CD. See [Setup DevOps](#setup-devops).
