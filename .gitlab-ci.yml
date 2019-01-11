@@ -1,0 +1,33 @@
+image: docker:latest
+variables:
+  GIT_SSL_NO_VERIFY: "1"
+stages:
+  - test
+  - build
+before_script:
+  - export PACKAGE_VERSION=$(grep '"version":' package.json | cut -d\" -f4)
+  - export NODE_ENV=production
+test:
+  image: thegreenhouse/nodejs-dev:0.4.0
+  stage: test
+  tags:
+    - docker
+  script:
+    - npm i npm@latest -g
+    - npm i
+    - npm i --only=dev
+    - npm test
+build:
+  stage: build
+  tags:
+    - docker
+  script: 
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE:$PACKAGE_VERSION .
+    - docker tag $CI_REGISTRY_IMAGE:$PACKAGE_VERSION $CI_REGISTRY_IMAGE
+    - docker push $CI_REGISTRY_IMAGE:$PACKAGE_VERSION
+    - docker push $CI_REGISTRY_IMAGE
+    - docker image rm $CI_REGISTRY_IMAGE
+    - docker image rm $CI_REGISTRY_IMAGE:$PACKAGE_VERSION
+  only:
+    - master
