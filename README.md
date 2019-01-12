@@ -328,7 +328,6 @@ docker run --init my.gitlab:4567/yourusername/example npm run test
 
 * [Official Docs](https://docs.gitlab.com/ee/raketasks/backup_restore.html)
 
-
 ### Gitlab Application Data
 
 Run a backup of the application data:
@@ -350,6 +349,7 @@ Gitlab [recommends storing the configuration backups seperate from your applicat
 
 ### Gitlab Runner Configuration
 
+Backup the runner config.toml and ssl cert
 ```
 sudo sh -c 'umask 0077; tar cfz /secret/gitlab/backups/$(date "+%s-gitlab-runner-ssl.tgz") -C /srv/gitlab-runner .'
 ```
@@ -357,7 +357,7 @@ sudo sh -c 'umask 0077; tar cfz /secret/gitlab/backups/$(date "+%s-gitlab-runner
 ### Daily Backups via Cron
 
 ```
-sudo crontab -e -u root
+sudo crontab -e
 ```
 
 Copy the provided `gitlab_backup.sh` which simply runs all the above and removes older backups. 
@@ -370,6 +370,8 @@ Add the following cron entry to run the script(which does all the above) to back
 ```
 
 You may also want to backup to remote cloud storage. That [functionality is also available](https://docs.gitlab.com/ce/raketasks/backup_restore.html#uploading-backups-to-a-remote-cloud-storage) for amazon, digital ocean spaces, google, etc.
+
+**Note** you can adjust the backup lifetime in the `docker-compose.yml` omnibus environment variable for `backup_keep_time` (we have it set to 172800 seconds or 48 hours). If you want to change that, you'll also want to adjust the cron script's `REMOVE_DAYS` to your preference.
 
 ## Restore
 
@@ -416,4 +418,3 @@ First make sure you have a fresh gitlab install running that matches the version
     ```
 
 **Note** a bug I'm aware of but have yet to find a fix is the ssh keys aren't reinitializing and have to be removed then readded manually for each user.  They show up but strangely won't authorize despite reconfiguring/reinitializing. 
-
