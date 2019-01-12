@@ -24,6 +24,8 @@ For the purpose of this demonstration, we will be assuming the persistent docker
 10. [Setup Gitlab DevOps](#setup-devops)
 11. [Run Test Job](#run-test-job)
 12. [Troubleshooting](#troubleshooting)
+13. [Backup](#backups)
+14. [Restore](#restore)
 
 ## Gitlab Omnibus Config
 
@@ -321,3 +323,97 @@ docker run --init my.gitlab:4567/yourusername/example npm run test
 3. If you see an error 'connection refused' when gitlab-runner initially clones your repository, make sure you have the correct `clone_url` within your [gitlab-runner config.toml](#setup-runner-docker-socket-binding) that matches your hostname within your `docker-compose.yml` e.g. `https://my.gitlab` without a port.
 
 4. If you see an error in gitlab-runner after docker login `unauthorized: HTTP Basic: Access denied`, make sure you entered the correct `CI_REGISTRY`, `CI_REGISTRY_USER`, `CI_REGISTRY_PASS` in the variables section of **your project -> Settings -> CI/CD**. See [Setup DevOps](#setup-devops).
+
+## Backups
+
+* [Official Docs](https://docs.gitlab.com/ee/raketasks/backup_restore.html)
+
+
+### Gitlab Application Data
+
+Run a backup of the application data:
+```
+docker exec -it GitLab gitlab-rake gitlab:backup:create
+```
+You will find the backup in `/srv/gitlab/data/backups` with a naming format: EPOCH_YYYY_MM_DD_GitLab_version_gitlab_backup.tar
+
+*Note* This does not backup your certs (stored in `/srv/gitlab/ssl`) nor does it back up your configuration files or the ssh keys
+
+### Gitlab Configuration
+
+Choose a directory to store the backup configurations and ssl certs on your host machine e.g. `/secret/gitlab/bacups
+```
+sudo sh -c 'umask 0077; tar cfz /secret/gitlab/backups/$(date "+%s-gitlab-config.tgz") -C /srv/gitlab config ssl'
+```
+
+Gitlab [recommends storing the configuration backups seperate from your application backups](https://docs.gitlab.com/omnibus/settings/backups.html) to reduce the change that your encrypted application will be lost or deleted
+
+### Gitlab Runner Configuration
+
+```
+sudo sh -c 'umask 0077; tar cfz /secret/gitlab/backups/$(date "+%s-gitlab-runner-ssl.tgz") -C /srv/gitlab-runner .'
+```
+
+### Daily Backups via Cron
+
+```
+sudo crontab -e -u root
+```
+
+Copy the provided `gitlab_backup.sh` which simply runs all the above and removes older backups. 
+
+Replace `/some/external/drive` with your backup location: 
+
+Add the following cron entry to run the script(which does all the above) to backup all your data everyday at 2 AM:
+```
+0 2 * * * sh /your/directory/gitlab_backup.sh
+```
+
+You may also want to backup to remote cloud storage. That [functionality is also available](https://docs.gitlab.com/ce/raketasks/backup_restore.html#uploading-backups-to-a-remote-cloud-storage) for amazon, digital ocean spaces, google, etc.
+
+## Restore
+
+* [Official Docs](https://docs.gitlab.com/ce/raketasks/backup_restore.html#restore)
+
+First make sure you have a fresh gitlab install running that matches the version you backed up. Then you can copy over the backup application data, gitlab config, and runner. Included is `gitlab_restore.sh` script that does everything below. You only need to modify it with the `BACKUP_DIR` path with the directory you backed up to(assuming you also used the [gitlab_backup.sh script above](#backup)).
+
+1. Restore application data:
+
+    You'll need to set permissions to the `git` user within the GitLab container. After you can restore all your groups, repositories, and containers in your registry.
+
+    ```
+    sudo cp /some/external/drive/backups/1547278101_2019_01_12_11.6.3_gitlab_backup.tar /srv/gitlab/data/backups/
+    docker exec -it Gitlab sh -c 'chown git.git /var/opt/gitlab/backups/*.tar'
+    docker exec -it GitLab gitlab-rake gitlab:backup:restore
+    ```
+
+2. Restore configuration
+
+    Reconfigure with your restored configurations:
+    ```
+    sudo tar -xvf /some/external/drive/backups/YOURBACKUP-gitlab-config.tar -C /srv/gitlab
+    docker exec -it GitKab gitlab-ctl reconfigure
+    ```
+
+3. Restore Runner configuration and certs
+
+    ```
+    sudo tar -xvf /some/external/drive/backups/YOURBACKUP-gitlab-runner.tar -C /srv/gitlab-runner
+    docker exec -it gitlab-runner gitlab-runner restart
+    ```
+
+4. Fix Registry permissions
+
+    ```
+    docker exec -it $CONTAINER sh -c 'chown -R registry:registry /var/opt/gitlab/gitlab-rails/shared/registry'
+    ```
+5. Restart Containers
+    
+    Reinitialize any files that weren't otherwise initialized when the services were restarted/reconfigured.
+
+    ```
+    docker-compose restart
+    ```
+
+**Note** a bug I'm aware of but have yet to find a fix is the ssh keys aren't reinitializing and have to be removed then readded manually for each user.  They show up but strangely won't authorize despite reconfiguring/reinitializing. 
+
