@@ -26,6 +26,7 @@ For the purpose of this demonstration, we will be assuming the persistent docker
 12. [Troubleshooting](#troubleshooting)
 13. [Backup](#backups)
 14. [Restore](#restore)
+15. [Service](#gitlab-service)
 
 ## Gitlab Omnibus Config
 
@@ -345,7 +346,7 @@ Choose a directory to store the backup configurations and ssl certs on your host
 sudo sh -c 'umask 0077; tar cfz /secret/gitlab/backups/$(date "+%s-gitlab-config.tgz") -C /srv/gitlab config ssl'
 ```
 
-Gitlab [recommends storing the configuration backups seperate from your application backups](https://docs.gitlab.com/omnibus/settings/backups.html) to reduce the change that your encrypted application will be lost or deleted
+Gitlab [recommends storing the configuration backups seperate from your application backups](https://docs.gitlab.com/omnibus/settings/backups.html) to reduce the chance that your encrypted application will be lost or deleted
 
 ### Gitlab Runner Configuration
 
@@ -377,7 +378,7 @@ You may also want to backup to remote cloud storage. That [functionality is also
 
 * [Official Docs](https://docs.gitlab.com/ce/raketasks/backup_restore.html#restore)
 
-First make sure you have a fresh gitlab install running that matches the version you backed up. Then you can copy over the backup application data, gitlab config, and runner. Included is `gitlab_restore.sh` script that does everything below. You only need to modify it with the `BACKUP_DIR` path with the directory you backed up to(assuming you also used the [gitlab_backup.sh script above](#backup)).
+First make sure you have a fresh gitlab install running that matches the version you backed up. Then you can copy over the backup application data, gitlab config, and runner. Included is `gitlab_restore.sh` script that does everything below. You only need to modify it with the `BACKUP_DIR` path with the directory you backed up to(assuming you also used the [gitlab_backup.sh script above](#backups)).
 
 1. Restore application data:
 
@@ -418,3 +419,40 @@ First make sure you have a fresh gitlab install running that matches the version
     ```
 
 **Note** a bug I'm aware of but have yet to find a fix is the ssh keys aren't reinitializing and have to be removed then readded manually for each user.  They show up but strangely won't authorize despite reconfiguring/reinitializing. 
+
+## Gitlab Service
+
+A script is provided to automate the setup of a gitlab systemd service. 
+
+You can use the following with by replacing `LINUXUSER` with the user you wish to use and `PATH_REPO_FOLDER` with the absolute path to the *folder* containing your `docker-compose.yml`
+```
+sudo sh gitlab_service.sh LINUXUSER PATH_REPO_FOLDER
+```
+
+Or you can manually copy below and replace `LINUXUSER` with the user you wish to use and `PATH_REPO_FOLDER` with your absolute path to the *folder* containing your `docker-compose.yml`:
+
+```
+[Unit]
+Description=Gitlab Service
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=LINUXUSER
+WorkingDirectory=PATH_REPO_FOLDER
+ExecStart=/usr/local/bin/docker-compose up -d
+ExecStop=/usr/local/bin/docker-compose down
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then start and enable the service to start automatically:
+
+```
+sudo systemctl start gitlab
+sudo systemctl enable gitlab
+```
