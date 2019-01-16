@@ -9,7 +9,7 @@ REMOVE_DAYS=1
 # Backup Application DATA
 echo "Backing up GitLab application data"
 docker exec -t $CONTAINER gitlab-rake gitlab:backup:create
-cp -u $GITLAB_DIR/data/backups/* $TARGET_DIR/
+cp -u $GITLAB_DIR/data/backups/. $TARGET_DIR/ -a
 
 # Backup configurations, SSH keys, and SSL certs
 echo "Backing up GitLab configurations, ssh keys, and ssl certs"
